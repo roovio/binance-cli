@@ -4,49 +4,6 @@ import fileinput
 from enum import Enum, auto
 
 
-# Usage:
-#
-# 1) interactive mode
-#
-#    python binance-cli.py 
-#
-#
-# 2) one-shot mode
-#
-#    python binance-cli.py -- <COMMAND> [ARGs]
-#
-#
-# command syntax:
-#   <COMMAND> [ARGs]
-#
-# commands:
-#  status
-#       display spot account equity and pending orders
-#
-#  buy <SYMBOL> <ORDER_TYPE>[=PRICE1[,PRICE2,PRICE3]] <TOKENS|CURRENCY>
-#       place a buy order. 
-#          Arguments:
-#             SYMBOL        the trading pair, example: BTCUSDT
-#             ORDER_TYPE    any of the following: market, limit, stop, oco
-#             PRICEn        if ORDER_TYPE:
-#                              market       ignored
-#                              limit        PRICE1 is limit price
-#                              stop         PRICE1 is stop price,  PRICE2 is stop limit price
-#                              oco          PRICE1 is limit price, PRICE2 is stop price,  PRICE3 is stop limit price
-#             TOKENS        number of tokens to buy. Example: if SYMBOL=BTCUSDT and TOKENS=1 this means buy 1 BTC
-#             $CURRENCY     currency to spend (calculate tokens automatically). Must be prefixed by "$".
-#                            Example: if SYMBOL=BTCUSDT and CURRENCY=1000 this means spend 1000 USDT to buy BTC at specified price
-#                           
-#
-#  sell <SYMBOL> <ORDER_TYPE>[=PRICE1[,PRICE2,PRICE3]] <TOKENS>
-#       place a sell order. For arguments, see 'buy' command
-#
-#  cancel <SYMBOL|'ALL'> [ID|'ALL']
-#       cancels one or more orders
-#           Arguments:
-#               SYMBOL      symbol to cancel orders for. Can be "ALL" so that orders for all symbols are canceled.
-#               ID          order ID to cancel.  IDs are listed by the 'status' command. Can be "ALL" to cancel all orders for symbol
-#
 
 from binance_api import Binance
 import config
