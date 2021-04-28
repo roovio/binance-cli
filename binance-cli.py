@@ -4,8 +4,20 @@ import fileinput
 from enum import Enum, auto
 
 
-# usage:
-#   <command> [ARGs]
+# Usage:
+#
+# 1) interactive mode
+#
+#    python binance-cli.py 
+#
+#
+# 2) one-shot mode
+#
+#    python binance-cli.py -- <COMMAND> [ARGs]
+#
+#
+# command syntax:
+#   <COMMAND> [ARGs]
 #
 # commands:
 #  status
@@ -180,11 +192,7 @@ def cmd_order_cancel_all():
     msg(E, "not implemented")
 
 
-def next_command(stdin):
-    print("\n" + PROMPT, end="")
-    sys.stdout.flush()
-    line = stdin.readline().rstrip()
-    tokens = line.split()
+def execute_command(tokens: list[str]):
     if len(tokens) >= 1:
         cmd = tokens[0]
         if cmd == "account":
@@ -220,6 +228,13 @@ def next_command(stdin):
         else:
             msg(E, f"unknown command: {cmd}")
 
+def next_command(stdin):
+    print("\n" + PROMPT, end="")
+    sys.stdout.flush()
+    line = stdin.readline().rstrip()
+    tokens = line.split()
+    execute_command(tokens)
+
 def run_command_loop():
     stdin = fileinput.input()
     while True:
@@ -228,6 +243,12 @@ def run_command_loop():
         #except Exception as e:
         #    msg(E, f"{e}")
 
+def run_oneshot(tokens: list[str]):
+    execute_command(tokens)
+
 if __name__ == '__main__':
-    print("Binance CLI started")
-    run_command_loop()
+    if len(sys.argv) > 2 and sys.argv[1] == "--":
+        run_oneshot(sys.argv[2:])
+    else:
+        print("Binance CLI started")
+        run_command_loop()
