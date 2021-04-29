@@ -120,6 +120,8 @@ class Binance:
 
     #     order = self._api_query_private(requests.post, '/api/v3/order', params)
 
+    def allSymbolsPriceTicker(self) -> dict:
+        return self._api_query_public("/api/v3/ticker/price")
 
     def symbolPriceTicker(self, symbol: str) -> dict:
         return self._api_query_public("/api/v3/ticker/price", {"symbol": symbol})
@@ -134,6 +136,9 @@ class Binance:
     def accountInformation(self) -> dict:
         return self._api_query_private(requests.get, "/api/v3/account")
     
+    def allOrders(self, symbol: str) -> dict:
+        return self._api_query_private(requests.get, "api/v3/allOrders", { 'symbol': symbol})
+
     def currentOpenOrders(self, symbol: str = None) -> dict:
         params = dict()
         if symbol:

@@ -1,8 +1,10 @@
 import sys
 import json
+import time
 import fileinput
+import pandas
+from pandas import DataFrame
 from enum import Enum, auto
-
 
 
 from binance_api import Binance
@@ -22,6 +24,8 @@ def pretty_json(s):
 
 
 api = Binance(config.api_key, config.secret)
+
+LOW_BALANCE_THRESHOLD = 0.01
 
 
 class OrderType(Enum):
@@ -93,39 +97,82 @@ def cmd_market_price(symbol: str):
 
 
 def cmd_status_list_equity():
-    print("Equity:")
+    print("Equity")
+    print("------")
     response = api.allCoinsInformation()
-    for item in filter(lambda x: float(x['free']) != 0, response):
-        print(f"{item['coin']} {item['name']} {float(item['free'])}")
+    df = DataFrame.from_dict(response)
+    df = df.filter(items=["coin", "name", "free", "locked"])#, "storage", "trading"])
+    df['free'] = pandas.to_numeric(df['free'])
+    df['locked'] = pandas.to_numeric(df['locked'])
+    df = df.loc[lambda df:  (df['free'] > LOW_BALANCE_THRESHOLD) | (df['locked'] > LOW_BALANCE_THRESHOLD), :]
+    
+    prices_df = DataFrame.from_dict(api.allSymbolsPriceTicker()).set_index(keys='symbol')
+    prices_df['price'] = pandas.to_numeric(prices_df['price'])
 
-def cmd_status_list_equity1():
-    print("Equity:")
-    response = api.accountInformation()
-    for item in response['balances']:
-        print(f"{item['asset']}  {float(item['free'])}")
+    prices_usd=[]
+    for idx, data in df.iterrows():
+        coin = data['coin']
+        price_usd = 0
+        if coin != "USDT":
+            if coin + "USDT" in prices_df.index:
+                price_usd = prices_df.at[coin + "USDT", 'price']
+            elif coin + "BTC" in prices_df.index and "BTCUSDT" in prices_df.index:
+                price_usd = prices_df.at[coin + "BTC", 'price'] * prices_df.at["BTCUSDT", 'price']
+            elif coin + "ETH" in prices_df.index and "ETHUSDT" in prices_df.index:
+                price_usd = prices_df.at[coin + "ETH", 'price'] * prices_df.at["ETHUSDT", 'price']
+            else:
+                price_usd = 0
+        else:
+            price_usd = 1
+        prices_usd.append(price_usd)
+    df['rate $'] = prices_usd
+    df['equiv $'] = (df['free'] + df['locked']) * df['rate $']
 
+    print(df.to_string(index=False))
+
+ 
 def cmd_status_list_open_orders():
-    print("Open orders:")
+    print("Open Orders")
+    print("-----------")
+
     response = api.currentOpenOrders()
+    df = DataFrame.from_dict(response)
+    df['time'] = pandas.to_datetime(df['time'], unit="ms")
+    df['price'] = pandas.to_numeric(df['price'])
+    df['executedQty'] = pandas.to_numeric(df['executedQty'])
+    df['origQty'] = pandas.to_numeric(df['origQty'])
+    df['origQuoteOrderQty'] = pandas.to_numeric(df['origQuoteOrderQty'])
+    df['cummulativeQuoteQty'] = pandas.to_numeric(df['cummulativeQuoteQty'])
+    df['total'] = df['price'] * df['origQty']
+    df = df.sort_values(by="time", ascending=False)
+    df = df.filter(items=[ "orderId", "time", "symbol", "type", "side", "price", "origQty", "executedQty", "total", "stopPrice", "status" ])
+    print(df.to_string(index=False))
 
-    print("symbol order_id type price stop_price qty status")
-
-    for item in response:
-        symbol = item['symbol']
-        order_id=  int(item['orderId'])
-        price = float(item['price'])
-        qty = float(item['executedQty'])
-        status = item['status']
-        otype = item['type']
-        stop = float(item['stopPrice'])
-
-        print(f"{symbol} {order_id} {otype} {price} {stop} {qty} {status}")
 
 def cmd_status():
-    #msg(I, "cmd status")
     cmd_status_list_equity()
-    #cmd_status_list_equity1()
+    print("")
     cmd_status_list_open_orders()
+    
+
+def cmd_order_history(symbol: str):
+    print("Order History")
+    print("-------------")
+
+    response = api.allOrders(symbol)
+    df = DataFrame.from_dict(response)
+    df = df.loc[df['status'] == "FILLED", :]
+    df['time'] = pandas.to_datetime(df['time'], unit="ms")
+    df['price'] = pandas.to_numeric(df['price'])
+    df['executedQty'] = pandas.to_numeric(df['executedQty'])
+    df['origQty'] = pandas.to_numeric(df['origQty'])
+    df['origQuoteOrderQty'] = pandas.to_numeric(df['origQuoteOrderQty'])
+    df['cummulativeQuoteQty'] = pandas.to_numeric(df['cummulativeQuoteQty'])
+    df['average'] = df['cummulativeQuoteQty'] / df['executedQty']
+    df = df.sort_values(by="time", ascending=False)
+    df = df.filter(items=[ "orderId", "time", "symbol", "type", "side", "average", "price", "executedQty", "origQty", "origQuoteOrderQty", "cummulativeQuoteQty"])
+    print(df.to_string(index=False))
+
 
 def cmd_order_buy(order: OrderArgs):
     msg(I, f"cmd order buy : {order}")
@@ -152,12 +199,12 @@ def cmd_order_cancel_all():
 def execute_command(tokens: list[str]):
     if len(tokens) >= 1:
         cmd = tokens[0]
-        if cmd == "account":
-            cmd_account()
-        elif cmd == "price":
+        if cmd == "price":
             cmd_market_price(tokens[1])
         elif cmd == "status":
             cmd_status()
+        elif cmd == "oh":
+            cmd_order_history(tokens[1])
         elif cmd == "buy":
             try:
                 cmd_order_buy(OrderArgs(tokens[1:]))
