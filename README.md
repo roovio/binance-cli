@@ -26,6 +26,14 @@ Display spot account equity and pending orders
 status
 ```
 
+### oh (Order History)
+
+Display spot account order history for specified symbol
+
+```
+oh <SYMBOL>
+```
+
 ### buy
 
 Place a buy order
