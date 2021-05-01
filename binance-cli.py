@@ -124,9 +124,7 @@ def parse_qty(symbol: str, qty_str: str):
     if qty_str[-1] == "$":
         qty = float(qty_str[:-1])
         qty_tokens = qty / float(api.symbolPriceTicker(symbol)['price'])
-        qty_tokens = round(qty_tokens)
-        if qty_tokens < 1:
-            raise ValueError("too little tokens to buy")
+        qty_tokens = round(qty_tokens, ndigits=3)
         info(f"derived quantity as {qty_tokens} {symbol} tokens, using market price ticker")
         return qty_tokens
     else:
