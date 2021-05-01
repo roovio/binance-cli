@@ -7,19 +7,12 @@ from pandas import DataFrame
 
 
 from binance_api import Binance
+from binance_api import BinanceQueryError
+from msg import debug, info, warn, err
 import config
 
 PROMPT="> "
 
-D = "D"
-I = "I"
-W = "W"
-E = "E"
-def msg(t, *args):
-    print(f"{t}:", *args)
-
-def pretty_json(s):
-    print(json.dumps(s, indent=4, sort_keys=True))
 
 
 api = Binance(config.api_key, config.secret)
@@ -156,7 +149,7 @@ def cmd_order_buy(tokens: list[str]):
     elif "limit" in order_type_str:
         r = cmd_order_buy_limit(symbol, order_type_str, qty)
     else:
-        msg(E, "invalid order type", order_type_str)
+        err("invalid order type", order_type_str)
         return
     print(f"{r['status']} order {r['orderId']}")
 
@@ -179,27 +172,27 @@ def cmd_order_sell(tokens: list[str]):
     elif "limit" in order_type_str:
         r = cmd_order_sell_limit(symbol, order_type_str, qty)
     else:
-        msg(E, "invalid order type", order_type_str)
+        err("invalid order type", order_type_str)
         return
     print(f"{r['status']} order {r['orderId']}")
 
 
 def cmd_order_cancel_id(symbol: str, order_id: int):
-    msg(I, f"canceling order {order_id} on {symbol}")
+    info(f"canceling order {order_id} on {symbol}")
     response = api.cancelOrder(symbol, order_id)
     print(response['status'])
 
 
 def cmd_order_cancel_all_symbol(symbol: str):
-    msg(I, f"canceling all orders on {symbol}!")
+    info(f"canceling all orders on {symbol}!")
     response = api.cancelAllOpenOrders(symbol)
     for order_status in response:
         print(f"order {order_status['orderId']} -> {order_status['status']}")
 
 
 def cmd_order_cancel_all():
-    #msg(I, "canceling EVERY order!")
-    msg(E, "not implemented")
+    #info("canceling EVERY order!")
+    warn("not implemented")
 
 
 def execute_command(tokens: list[str]):
@@ -231,9 +224,16 @@ def execute_command(tokens: list[str]):
                     else:
                         cmd_order_cancel_id(symbol, int(order_id))
             except Exception as e:
-                msg(E, f"{e}")
+                err(f"{e}")
         else:
-            msg(E, f"unknown command: {cmd}")
+            err(f"unknown command: {cmd}")
+
+
+def execute_command_exc_wrapper(tokens: list[str]):
+    try:
+        execute_command(tokens)
+    except BinanceQueryError as e:
+        err(f"{e}")
 
 
 def next_command(stdin):
@@ -241,7 +241,7 @@ def next_command(stdin):
     sys.stdout.flush()
     line = stdin.readline().rstrip()
     tokens = line.split()
-    execute_command(tokens)
+    execute_command_exc_wrapper(tokens)
 
 
 def run_command_loop():
@@ -250,11 +250,11 @@ def run_command_loop():
         #try:
         next_command(stdin)
         #except Exception as e:
-        #    msg(E, f"{e}")
+        #    err(f"{e}")
 
 
 def run_oneshot(tokens: list[str]):
-    execute_command(tokens)
+    execute_command_exc_wrapper(tokens)
 
 
 if __name__ == '__main__':
