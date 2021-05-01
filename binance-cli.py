@@ -105,7 +105,7 @@ def cmd_order_history(symbol: str):
 
     response = api.allOrders(symbol)
     df = DataFrame.from_dict(response)
-    df = df.loc[df['status'] == "FILLED", :]
+    df = df.loc[lambda df: (df['status'] != "CANCELED") , :]
     df['time'] = pandas.to_datetime(df['time'], unit="ms")
     df['price'] = pandas.to_numeric(df['price'])
     df['executedQty'] = pandas.to_numeric(df['executedQty'])
@@ -115,20 +115,23 @@ def cmd_order_history(symbol: str):
     df['average'] = df['cummulativeQuoteQty'] / df['executedQty']
     #df['price'] = df['price'].transform(lambda s: s if s > 0.00000001 else 'Market')  #note: breaks decimal point alignment because column type is no longer numeric
     df = df.sort_values(by="time", ascending=False)
-    df = df.filter(items=[ "orderId", "time", "symbol", "type", "side", "average", "price", "executedQty", "origQty", "origQuoteOrderQty", "cummulativeQuoteQty"])
+    df = df.filter(items=[ "orderId", "time", "symbol", "type", "side", "average", "price", "executedQty", "origQty", "origQuoteOrderQty", "cummulativeQuoteQty", "status"])
     print(df.to_string(index=False))
 
 
-def parse_qty(symbol: str, amount_str: str):
+def parse_qty(symbol: str, qty_str: str):
     convert = False
-    if amount_str == "$":
-        amount = float(amount_str[1:])
-        amount_tokens = amount / api.symbolPriceTicker(symbol)
-        msg(I, f"converted ${amount} to {amount_tokens} {symbol} tokens using market price ticker")
-        return amount_tokens
+    if qty_str[-1] == "$":
+        qty = float(qty_str[:-1])
+        qty_tokens = qty / float(api.symbolPriceTicker(symbol)['price'])
+        qty_tokens = round(qty_tokens)
+        if qty_tokens < 1:
+            raise ValueError("too little tokens to buy")
+        info(f"derived quantity as {qty_tokens} {symbol} tokens, using market price ticker")
+        return qty_tokens
     else:
-        amount_tokens = float(amount_str)
-        return amount_tokens
+        qty_tokens = float(qty_str)
+        return qty_tokens
 
 
 def cmd_order_buy_market(symbol: str, qty: float) -> dict:

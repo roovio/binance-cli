@@ -107,7 +107,8 @@ class Binance:
             'type': 'LIMIT',
             'timeInForce': 'GTC',
             'quantity': quantity,
-            'price': price
+            'price': f"{price:8.8f}" # if price is too small default conversion will format float using
+                                     # scientific notation which exchange API does not understand
         }
         #print("limit order", params)
         return self._api_query_private(requests.post, "/api/v3/order", params)

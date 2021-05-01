@@ -48,7 +48,7 @@ buy <SYMBOL> <ORDER_TYPE>[=PRICE1[,PRICE2,PRICE3]] <TOKENS|CURRENCY>
 | `ORDER_TYPE`    | any of the following: `market`, `limit`, `stop`, `oco`
 | `PRICEn`        | see below
 | `TOKENS`        | number of tokens to buy. Example: if SYMBOL=BTCUSDT and TOKENS=1 this means buy 1 BTC
-| `$CURRENCY`     | currency to spend (calculate tokens automatically). Must be prefixed by "$". <br> Example: if `SYMBOL`=`BTCUSDT` and `CURRENCY`=1000 this means spend 1000 USDT to buy BTC at specified price |
+| `CURRENCY$`     | currency to spend (calculate tokens automatically). Must be suffixed by '$'. <br> Example: if `SYMBOL`=`BTCUSDT` and `CURRENCY`= 1000 this means spend 1000 USDT to buy BTC at specified price |
 
 Each `ORDER_TYPE` requires specific amount of PRICE tokens:
 
