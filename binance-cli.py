@@ -14,12 +14,14 @@ import config
 PROMPT="> "
 
 
-
 api = Binance(config.api_key, config.secret)
 
 LOW_BALANCE_THRESHOLD = 0.01
 
+pandas.set_option("precision", 8)
 
+def binance_convert_datetime_local(series):
+    return pandas.DatetimeIndex(pandas.to_datetime(series, unit='ms')).tz_localize('UTC' ).tz_convert(time.tzname[0])
 
 def cmd_ping():
     t = time.time()
@@ -72,14 +74,20 @@ def cmd_status_list_equity():
 
     print(df.to_string(index=False))
 
- 
+
+order_table_formatters =\
+{
+    'time': lambda x: x.strftime("%m-%d %H:%M:%S"),
+}
+
+
 def cmd_status_list_open_orders():
     print("Open Orders")
     print("-----------")
 
     response = api.currentOpenOrders()
     df = DataFrame.from_dict(response)
-    df['time'] = pandas.to_datetime(df['time'], unit="ms")
+    df['time'] = binance_convert_datetime_local(df['time'])
     df['price'] = pandas.to_numeric(df['price'])
     df['stopPrice'] = pandas.to_numeric(df['stopPrice'])
     df['executedQty'] = pandas.to_numeric(df['executedQty'])
@@ -90,7 +98,7 @@ def cmd_status_list_open_orders():
     #df['stopPrice'] = df['stopPrice'].transform(lambda s: s if s > 0.00000001 else '-')   #note: breaks decimal point alignment because column type is no longer numeric
     df = df.sort_values(by="time", ascending=False)
     df = df.filter(items=[ "orderId", "time", "symbol", "type", "side", "price", "origQty", "executedQty", "total", "stopPrice", "status" ])
-    print(df.to_string(index=False))
+    print(df.to_string(formatters=order_table_formatters, index=False))
 
 
 def cmd_status():
@@ -105,8 +113,8 @@ def cmd_order_history(symbol: str):
 
     response = api.allOrders(symbol)
     df = DataFrame.from_dict(response)
-    df = df.loc[lambda df: (df['status'] != "CANCELED") , :]
-    df['time'] = pandas.to_datetime(df['time'], unit="ms")
+    df = df.loc[lambda df: (df['status'] != "CANCELED")&(df['status'] != "EXPIRED")&(df['status'] != "NEW") , :]
+    df['time'] = binance_convert_datetime_local(df['time'])
     df['price'] = pandas.to_numeric(df['price'])
     df['executedQty'] = pandas.to_numeric(df['executedQty'])
     df['origQty'] = pandas.to_numeric(df['origQty'])
@@ -116,7 +124,7 @@ def cmd_order_history(symbol: str):
     #df['price'] = df['price'].transform(lambda s: s if s > 0.00000001 else 'Market')  #note: breaks decimal point alignment because column type is no longer numeric
     df = df.sort_values(by="time", ascending=False)
     df = df.filter(items=[ "orderId", "time", "symbol", "type", "side", "average", "price", "executedQty", "origQty", "origQuoteOrderQty", "cummulativeQuoteQty", "status"])
-    print(df.to_string(index=False))
+    print(df.to_string(formatters=order_table_formatters, index=False))
 
 
 def parse_qty(symbol: str, qty_str: str):
