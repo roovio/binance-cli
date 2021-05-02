@@ -6,7 +6,7 @@ import time
 import fileinput
 import pandas
 from pandas import DataFrame
-
+from termcolor import colored, cprint
 
 from binance_api import Binance
 from binance_api import BinanceQueryError
@@ -21,6 +21,9 @@ api = Binance(config.api_key, config.secret)
 LOW_BALANCE_THRESHOLD = 0.01
 
 pandas.set_option("precision", 8)
+
+def title(name: str):
+    cprint(f"\n{name}\n", 'red', attrs=['bold'])
 
 def binance_convert_datetime_local(series):
     return pandas.DatetimeIndex(pandas.to_datetime(series, unit='ms')).tz_localize('UTC' ).tz_convert(time.tzname[0])
@@ -38,13 +41,8 @@ def cmd_market_price(symbol: str):
     response = api.symbolPriceTicker(symbol)
     print(float(response['price']))
 
-def cmd_equiv_diff(price_a: float, price_b: float, amount: float):
-    equiv = (price_a - price_b) * amount
-    print(f"{equiv:8.8f}")
-
-def cmd_status_list_equity():
-    print("Equity")
-    print("------")
+def cmd_equity():
+    title("Equity")
     response = api.allCoinsInformation()
     df = DataFrame.from_dict(response)
     df = df.filter(items=["coin", "name", "free", "locked"])#, "storage", "trading"])
@@ -84,10 +82,8 @@ order_table_formatters =\
 }
 
 
-def cmd_status_list_open_orders():
-    print("Open Orders")
-    print("-----------")
-
+def cmd_open_orders():
+    title("Open Orders")
     response = api.currentOpenOrders()
     df = DataFrame.from_dict(response)
     df['time'] = binance_convert_datetime_local(df['time'])
@@ -102,21 +98,18 @@ def cmd_status_list_open_orders():
     df = df.sort_values(by="time", ascending=False)
     df = df.filter(items=[ "orderId", "time", "symbol", "type", "side", "price", "origQty", "executedQty", "total", "stopPrice", "status" ])
     print(df.to_string(formatters=order_table_formatters, index=False))
-
+ 
 
 def cmd_status():
-    cmd_status_list_equity()
+    cmd_equity()
     print("")
-    cmd_status_list_open_orders()
+    cmd_open_orders()
     
 
 def cmd_order_history(symbol: str):
-    print("Order History")
-    print("-------------")
-
+    title("Order History")
     response = api.allOrders(symbol)
     df = DataFrame.from_dict(response)
-    df = df.loc[lambda df: (df['status'] != "CANCELED")&(df['status'] != "EXPIRED")&(df['status'] != "NEW") , :]
     df['time'] = binance_convert_datetime_local(df['time'])
     df['price'] = pandas.to_numeric(df['price'])
     df['executedQty'] = pandas.to_numeric(df['executedQty'])
@@ -124,11 +117,38 @@ def cmd_order_history(symbol: str):
     df['origQuoteOrderQty'] = pandas.to_numeric(df['origQuoteOrderQty'])
     df['cummulativeQuoteQty'] = pandas.to_numeric(df['cummulativeQuoteQty'])
     df['average'] = df['cummulativeQuoteQty'] / df['executedQty']
+    
+    df = df.loc[lambda df: df['executedQty'] > 0, :]
+    
+    #df['side'] = df['side'].transform(lambda s: colored(s, ['red', 'green'][s != "SELL"])) # note breaks column titles out of alignment
+
     #df['price'] = df['price'].transform(lambda s: s if s > 0.00000001 else 'Market')  #note: breaks decimal point alignment because column type is no longer numeric
+    
     df = df.sort_values(by="time", ascending=False)
     df = df.filter(items=[ "orderId", "time", "symbol", "type", "side", "average", "price", "executedQty", "origQty", "origQuoteOrderQty", "cummulativeQuoteQty", "status"])
     print(df.to_string(formatters=order_table_formatters, index=False))
 
+
+def cmd_equiv_cummulative_signed_order(symbol: str, since: pandas.Timestamp):
+    title(f"Equivalent cummulative signed order since {since}")
+    response = api.allOrders(symbol)
+    df = DataFrame.from_dict(response)
+    df = df.filter(items=[ "time", "side", "executedQty", "cummulativeQuoteQty"])
+
+    df['time'] = binance_convert_datetime_local(df['time'])
+    df['executedQty'] = pandas.to_numeric(df['executedQty'])
+    df['cummulativeQuoteQty'] = pandas.to_numeric(df['cummulativeQuoteQty'])
+    
+    df = df.loc[lambda df: df['executedQty'] > 0, :]
+    df = df.sort_values(by="time", ascending=False)
+    df = df.loc[lambda df: df['time'] >= since, :]
+    
+    total_quote_qty = df.apply(lambda s: s['cummulativeQuoteQty'] * [1,-1][s['side'] == "SELL"], axis=1).sum()
+    total_tokens_qty = df.apply(lambda s: s['executedQty'] * [1,-1][s['side'] == "SELL"], axis=1).sum()
+
+    print(df.to_string(formatters=order_table_formatters, index=False))
+    print(f"equiv quote qty: {total_quote_qty:.8f}\nequiv tokens qty: {total_tokens_qty:.8f}\nequiv price: {total_quote_qty/total_tokens_qty:.8f}")
+    
 
 def parse_qty(symbol: str, qty_str: str):
     convert = False
@@ -214,12 +234,16 @@ def execute_command(tokens: list[str]):
             cmd_ping()
         elif cmd == "price":
             cmd_market_price(tokens[1])
-        elif cmd == "equivdiff":
-            cmd_equiv_diff(float(tokens[1]), float(tokens[2]), float(tokens[3]))
         elif cmd == "status":
             cmd_status()
+        elif cmd == "equity":
+            cmd_equity()
+        elif cmd == "oo":
+            cmd_open_orders()
         elif cmd == "oh":
             cmd_order_history(tokens[1])
+        elif cmd == "equiv_order":
+            cmd_equiv_cummulative_signed_order(tokens[1], pandas.Timestamp(tokens[2], tz=time.tzname[0]))
         elif cmd == "buy":
             cmd_order_buy(tokens[1:])
         elif cmd == "sell":
