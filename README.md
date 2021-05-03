@@ -125,10 +125,11 @@ sell <SYMBOL> <ORDER_TYPE>[=PRICE1[,PRICE2,PRICE3]] <TOKENS>
 Cancels one or more orders
 
 ```
-cancel <SYMBOL|'ALL'> [ID|'ALL']
+cancel <ID|SYMBOL|'ALL'>
 ```
 
 | Argument        | Description |
 | --------------- | ----------- |
-| `SYMBOL`        | symbol to cancel orders for. Can be "ALL" so that orders for all symbols are canceled.
-| `ID`            | order ID to cancel.  IDs are listed by the `status` command. Can be "ALL" to cancel all orders for symbol
+| `ID`            | Cancel order by ID.  IDs are listed by the `oo` or `status`command. No need to specify the symbol -- determined automatically.
+| `SYMBOL`        | Cancel all existing orders for specified symbol
+| `ALL`           | Cancel all existing orders in the account

@@ -209,10 +209,16 @@ def cmd_order_sell(tokens: list[str]):
     print(f"{r['status']} order {r['orderId']}")
 
 
-def cmd_order_cancel_id(symbol: str, order_id: int):
+def cmd_order_cancel_id(order_id: int):
+    open_orders = api.currentOpenOrders()
+    find_order = list(filter(lambda x: int(x['orderId']) == order_id, open_orders))
+    if len(find_order):
+        symbol = find_order[0]['symbol']
     info(f"canceling order {order_id} on {symbol}")
     response = api.cancelOrder(symbol, order_id)
     print(response['status'])
+    else:
+        err(f"Order not found: {order_id}")
 
 
 def cmd_order_cancel_all_symbol(symbol: str):
@@ -249,19 +255,14 @@ def execute_command(tokens: list[str]):
         elif cmd == "sell":
             cmd_order_sell(tokens[1:])
         elif cmd == "cancel":
-            try:
                 symbol  = tokens[1]
                 if symbol == "ALL":
                     cmd_order_cancel_all()
+            elif symbol.isnumeric():
+                cmd_order_cancel_id(int(symbol))
                 else:
-                    order_id = tokens[2]
-                    if order_id == "ALL":
                         cmd_order_cancel_all_symbol(symbol)
                     else:
-                        cmd_order_cancel_id(symbol, int(order_id))
-            except Exception as e:
-                err(f"{e}")
-        else:
             err(f"unknown command: {cmd}")
 
 
