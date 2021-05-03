@@ -11,6 +11,7 @@ from termcolor import colored, cprint
 from binance_api import Binance
 from binance_api import BinanceQueryError
 from msg import debug, info, warn, err
+from round_qty import round_qty
 import config
 
 PROMPT="> "
@@ -155,7 +156,7 @@ def parse_qty(symbol: str, qty_str: str):
     if qty_str[-1] == "$":
         qty = float(qty_str[:-1])
         qty_tokens = qty / float(api.symbolPriceTicker(symbol)['price'])
-        qty_tokens = round(qty_tokens, ndigits=3)
+        qty_tokens = round_qty(qty_tokens)
         info(f"derived quantity as {qty_tokens} {symbol} tokens, using market price ticker")
         return qty_tokens
     else:
@@ -214,9 +215,9 @@ def cmd_order_cancel_id(order_id: int):
     find_order = list(filter(lambda x: int(x['orderId']) == order_id, open_orders))
     if len(find_order):
         symbol = find_order[0]['symbol']
-    info(f"canceling order {order_id} on {symbol}")
-    response = api.cancelOrder(symbol, order_id)
-    print(response['status'])
+        info(f"canceling order {order_id} on {symbol}")
+        response = api.cancelOrder(symbol, order_id)
+        print(response['status'])
     else:
         err(f"Order not found: {order_id}")
 
@@ -255,14 +256,14 @@ def execute_command(tokens: list[str]):
         elif cmd == "sell":
             cmd_order_sell(tokens[1:])
         elif cmd == "cancel":
-                symbol  = tokens[1]
-                if symbol == "ALL":
-                    cmd_order_cancel_all()
+            symbol  = tokens[1]
+            if symbol == "ALL":
+                cmd_order_cancel_all()
             elif symbol.isnumeric():
                 cmd_order_cancel_id(int(symbol))
-                else:
-                        cmd_order_cancel_all_symbol(symbol)
-                    else:
+            else:
+                cmd_order_cancel_all_symbol(symbol)
+        else:
             err(f"unknown command: {cmd}")
 
 
