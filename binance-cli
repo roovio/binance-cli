@@ -213,8 +213,6 @@ def cmd_order_sell(tokens: list[str]):
             return
         info(f"qty not specified, selling all {qty} available tokens")
 
-    return
-
     order_type_str = tokens[1]
     r = {}
     if order_type_str == "market":
