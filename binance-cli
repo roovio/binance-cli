@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import sys
-import json
+import re
 import time
 import fileinput
 import pandas
@@ -10,7 +10,7 @@ from termcolor import colored, cprint
 
 from binance_api import Binance
 from binance_api import BinanceQueryError
-from msg import debug, info, warn, err
+from msg import debug, info, warn, err, pretty_json
 from round_qty import round_qty
 import config
 
@@ -163,6 +163,12 @@ def parse_qty(symbol: str, qty_str: str):
         qty_tokens = float(qty_str)
         return qty_tokens
 
+def all_available_qty(symbol: str):
+    all_coins_info = api.allCoinsInformation()
+    # Include each coin info where 'coin' is some substring at the beginning in 'symbol'.
+    # Sort by length to make sure we pick fullest match of all
+    find_coin = list(sorted(filter(lambda x: None != re.match(f"^{x['coin']}", symbol) , all_coins_info), key=lambda x: len(x['coin']), reverse=True))
+    return round(float(find_coin[0]['free']), ndigits=3)  if len(find_coin)  else 0
 
 def cmd_order_buy_market(symbol: str, qty: float) -> dict:
     return api.createMarketOrder(symbol, "BUY", qty)
@@ -197,7 +203,18 @@ def cmd_order_sell_limit(symbol: str, limit_str: str, qty: float):
 
 def cmd_order_sell(tokens: list[str]):
     symbol = tokens[0]
-    qty = parse_qty(symbol, tokens[2])
+    qty = 0
+    if len(tokens) > 2:
+        qty = parse_qty(symbol, tokens[2])
+    else:
+        qty = all_available_qty(symbol)
+        if qty == 0:
+            err(f"qty not specified, and you have no tokens that can be sold for {symbol}")
+            return
+        info(f"qty not specified, selling all {qty} available tokens")
+
+    return
+
     order_type_str = tokens[1]
     r = {}
     if order_type_str == "market":

@@ -117,8 +117,11 @@ Each `ORDER_TYPE` requires specific amount of PRICE tokens:
 Place a sell order. For arguments, see 'buy' command
 
 ```
-sell <SYMBOL> <ORDER_TYPE>[=PRICE1[,PRICE2,PRICE3]] <TOKENS>
+sell <SYMBOL> <ORDER_TYPE>[=PRICE1[,PRICE2,PRICE3]] [TOKENS]
 ```
+
+   Unlike in `buy` command `TOKENS` parameter can be omitted when selling. 
+   In such case the algorithm finds the matching coin and it's equity and attempts to sell all holdings for the coin.
 
 ### cancel
 
