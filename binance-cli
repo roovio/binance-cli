@@ -52,7 +52,7 @@ def cmd_equity():
     df = df.loc[lambda df:  (df['free'] > LOW_BALANCE_THRESHOLD) | (df['locked'] > LOW_BALANCE_THRESHOLD), :]
 
     if not len(df):
-        warn("You have 0 equity")
+        warn("you have 0 equity")
         return
 
     prices_df = DataFrame.from_dict(api.allSymbolsPriceTicker()).set_index(keys='symbol')
@@ -92,7 +92,7 @@ def cmd_open_orders():
     response = api.currentOpenOrders()
 
     if not len(response):
-        warn("No open orders")
+        warn("no open orders")
         return
 
     df = DataFrame.from_dict(response)
